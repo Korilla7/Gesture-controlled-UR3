@@ -1,0 +1,2 @@
+string[] side
+string[] gesture
