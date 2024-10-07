@@ -24,7 +24,6 @@ import threading
 # robot = moveit_commander.RobotCommander()
 commander = moveit_commander.MoveGroupCommander("arm")
 
-
 # display_trajectory_publisher = rospy.Publisher('/move_group/display_planned_path', moveit_msgs.msg.DisplayTrajectory, queue_size=20)
 
 # eef_link = commander.get_end_effector_link()
@@ -37,6 +36,9 @@ commander = moveit_commander.MoveGroupCommander("arm")
 
 commander.set_max_velocity_scaling_factor(0.1)
 commander.set_max_acceleration_scaling_factor(0.1)
+
+commander.set_planner_id("RRTConnect")
+commander.set_planning_time(5)
 
 base_rotation_angle = math.pi*(3/4)     # fixed angle to rotate the base of the robot
 z_axis_correction = 0.21 - 0.05              # correction of the z-axis based on gripper length
@@ -62,7 +64,7 @@ class RobotController:
         starting_position[0] = 0.785
         starting_position[1] = -1.5708
         starting_position[2] = 1.5708
-        starting_position[3] = -1.5708
+        starting_position[3] = -2.3562
         starting_position[4] = -1.5708
         starting_position[5] = 0.005
         commander.go(starting_position, wait=True)
@@ -83,6 +85,7 @@ class RobotController:
 
         # Initialize the command message
         self.current_command = CModelCommand()
+        self.previous_command = CModelCommand()
 
         # Set the command message to the default values and publish it
         self.current_command.rACT = 1   # Activate the gripper
@@ -101,11 +104,11 @@ class RobotController:
         self.coord_callback_flag = True
 
         # Frequencies of robot movement [Hz]
-        self.normal_move_rate = rospy.Rate(2)
-        self.slow_move_rate = rospy.Rate(1)
+        self.normal_move_rate = rospy.Rate(1)
+        self.slow_move_rate = rospy.Rate(0.5)
 
         self.min_distance = 0.01
-        self.max_distance = 0.2
+        self.max_distance = 0.5
 
 
     def plot_poses(self, current_poses, pose_goals, pose_differences):
@@ -226,6 +229,14 @@ class RobotController:
             pass
         print("Current force: ", self.current_command.rFR)
         self.command_pub.publish(self.current_command)
+
+        # doesnt work
+        # If current command changes to closed fist, hold the robot still
+        if self.current_command.rPR == 255 and self.previous_command.rPR == 0:
+            commander.stop()
+            commander.clear_pose_targets()
+            rospy.sleep(1)
+        self.previous_command = self.current_command
 
     def move_robot(self):
         while not rospy.is_shutdown():
