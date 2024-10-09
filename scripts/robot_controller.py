@@ -41,7 +41,9 @@ commander.set_planner_id("RRTConnect")
 commander.set_planning_time(5)
 
 base_rotation_angle = math.pi*(3/4)     # fixed angle to rotate the base of the robot
-z_axis_correction = 0.21 - 0.05              # correction of the z-axis based on gripper length
+# z_axis_correction = 0.24 + 0.05              # correction of the z-axis for vertical gripper
+# z_axis_correction = 0.15 + 0.05              # correction of the z-axis for angled gripper (45deg)
+z_axis_correction = 0.20 + 0.05              # correction of the z-axis for angled gripper (60deg)
 
 class RobotController:
     def __init__(self):
@@ -64,7 +66,9 @@ class RobotController:
         starting_position[0] = 0.785
         starting_position[1] = -1.5708
         starting_position[2] = 1.5708
-        starting_position[3] = -2.3562
+        # starting_position[3] = -2.3562  # 45 degrees
+        # starting_position[3] = -1.5708  # 90 degrees
+        starting_position[3] = -2.0944  # 60 degrees
         starting_position[4] = -1.5708
         starting_position[5] = 0.005
         commander.go(starting_position, wait=True)
@@ -107,7 +111,7 @@ class RobotController:
         self.normal_move_rate = rospy.Rate(1)
         self.slow_move_rate = rospy.Rate(0.5)
 
-        self.min_distance = 0.01
+        self.min_distance = 0.005
         self.max_distance = 0.5
 
 

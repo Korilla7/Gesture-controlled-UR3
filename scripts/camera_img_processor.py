@@ -165,16 +165,28 @@ class GestureRecognizer:
                     x_coord = int((x_coord*z)/0.5)
                     y_coord = int((y_coord*z)/0.5)
 
+                    x_boundary = (stream_res_x/2)*1.25
+                    y_boundary = (stream_res_y/2)*1.25
+
                     #TODO: Correct the boundaries and coordinate scaling
 
-                    if -stream_res_x/1.5 < x_coord < stream_res_x/1.5 and -stream_res_y/1.5 < y_coord < stream_res_y/1.5 and 0.5 < z < 1.2:
-                        x_scaled = self.scale_range([x_coord], [-stream_res_x/2, stream_res_x/2], [-0.4, 0.4])
-                        y_scaled = self.scale_range([z], [0.5, 1.2], [0.0, 0.6])
-                        z_scaled = self.scale_range([y_coord], [-stream_res_y/2, stream_res_y/2], [0.1, 0.5])
+                    if -x_boundary < x_coord < x_boundary and -y_boundary < y_coord < y_boundary and 0.6 < z < 1.2:
+                        x_scaled = self.scale_range([x_coord], [-x_boundary, x_boundary], [-0.4, 0.4])
+                        y_scaled = self.scale_range([z], [0.6, 1.2], [0.2, 0.6])
+                        z_scaled = self.scale_range([y_coord], [-y_boundary, y_boundary], [0.01, 0.5])
 
                         self.coordinates2publish.position.x = x_scaled[0]
                         self.coordinates2publish.position.y = y_scaled[0]
                         self.coordinates2publish.position.z = z_scaled[0]
+
+                    elif y_coord < -y_boundary:
+                        x_scaled = self.scale_range([x_coord], [-x_boundary, x_boundary], [-0.4, 0.4])
+                        y_scaled = self.scale_range([z], [0.6, 1.2], [0.0, 0.6])
+                        z_scaled = [0.01]
+
+                        self.coordinates2publish.position.x = x_scaled[0]
+                        self.coordinates2publish.position.y = y_scaled[0]
+                        self.coordinates2publish.position.z = z_scaled[0] 
                     else:
                         print('Hand out of bounds')
                     
