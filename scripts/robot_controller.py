@@ -102,6 +102,10 @@ class RobotController:
         self.current_command.rFR = 0    # Force
         self.command_pub.publish(self.current_command)
 
+        # Gripper states (open/closed)
+        self.previous_gripper_state = None
+        self.current_gripper_state = None
+
 
         # Values for plotting
         self.current_poses = []
@@ -239,16 +243,17 @@ class RobotController:
             if data.gesture == ['Closed_Fist']:
                 self.current_command.rPR = 255
                 print("Command rPR: ", self.current_command.rPR)
+                self.current_gripper_state = 'closed'
             if data.gesture == ['Open_Palm']:
                 self.current_command.rPR = 0
                 print("Command rPR: ", self.current_command.rPR)
+                self.current_gripper_state = 'open'
             if data.gesture == ['None']:
                 print("No gesture detected.")
             # if data.gesture == ['Thumb_Up']:
             #     self.activate_robot_flag = False
             #     print("Robot deactivated.")
-            else:
-                pass
+            self.previous_command = self.current_command
             print("Current force: ", self.current_command.rFR)
             self.command_pub.publish(self.current_command)
 
@@ -263,6 +268,11 @@ class RobotController:
     def move_robot(self):
         while not rospy.is_shutdown():
             # if self.activate_robot_flag == True:
+                if self.previous_gripper_state == 'open' and self.current_gripper_state == 'closed':
+                    # Hold the robot still for 1 second
+                    rospy.sleep(1)
+                self.previous_gripper_state = self.current_gripper_state
+
                 if self.next_pose == None:
                     print("No new pose goal.")
                     rospy.sleep(0.1)
