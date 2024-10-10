@@ -157,7 +157,7 @@ class GestureRecognizer:
                     if y >= len(depth_image_flipped):
                         y = len(depth_image_flipped) - 1
                     mfk_distance = depth_image_flipped[y,x] * depth_scale # meters
-                    z = mfk_distance
+                    z_coord = mfk_distance
                     # print("x:{}, y:{}, z:{}".format(x, y, z))
 
                     # (X,Y) = (0,0) is the center of the image
@@ -165,8 +165,8 @@ class GestureRecognizer:
                     y_coord = -(y - 0.5*stream_res_y)
 
                     # Scale the coordinates to make a box
-                    x_coord = int((x_coord*z)/0.5)
-                    y_coord = int((y_coord*z)/0.5)
+                    x_coord = int((x_coord*z_coord)/0.5)
+                    y_coord = int((y_coord*z_coord)/0.5)
 
                     # Coordinate boundaries relative to the center of the image
                     x_boundary = (stream_res_x/2)*1.25
@@ -200,15 +200,15 @@ class GestureRecognizer:
                         self.coordinates2publish.position.z = z_scaled[0]
 
                     # Y coordinate logic (Z swaps with Y)
-                    if 0.6 < z < 1.2:
-                        y_scaled = self.scale_range([z], [0.6, 1.2], [0.2, 0.6])
+                    if 0.6 < z_coord < 1.2:
+                        y_scaled = self.scale_range([z_coord], [0.6, 1.2], [0.2, 0.6])
                         self.coordinates2publish.position.y = y_scaled[0]
 
-                    elif z < 0.6:
+                    elif z_coord < 0.6:
                         y_scaled = [0.2]
                         self.coordinates2publish.position.y = y_scaled[0]
 
-                    elif z > 1.2:
+                    elif z_coord > 1.2:
                         y_scaled = [0.6]
                         self.coordinates2publish.position.y = y_scaled[0]
                     
@@ -217,8 +217,8 @@ class GestureRecognizer:
                     # images = cv2.line(images, (480, 330), (480, 110), self.color, 3)
                     # images = cv2.line(images, (480, 110), (160, 110), self.color, 3)
                     org2 = (20, self.org[1]+(20*(i+1)))
-                    images = cv2.putText(images, f"{hand_side} Hand: x:{x_coord} y:{y_coord} z:{z:0.3}", org2, self.font, self.fontScale, [0,0,0], self.thickness+1, cv2.LINE_AA)
-                    images = cv2.putText(images, f"{hand_side} Hand: x:{x_coord} y:{y_coord} z:{z:0.3}", org2, self.font, self.fontScale, self.color, self.thickness, cv2.LINE_AA)
+                    images = cv2.putText(images, f"{hand_side} Hand: x:{x_coord} y:{y_coord} z:{z_coord:0.3}", org2, self.font, self.fontScale, [0,0,0], self.thickness+1, cv2.LINE_AA)
+                    images = cv2.putText(images, f"{hand_side} Hand: x:{x_coord} y:{y_coord} z:{z_coord:0.3}", org2, self.font, self.fontScale, self.color, self.thickness, cv2.LINE_AA)
                     i+=1
                 self.put_gestures(images)
 
