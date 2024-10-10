@@ -159,36 +159,58 @@ class GestureRecognizer:
                     mfk_distance = depth_image_flipped[y,x] * depth_scale # meters
                     z = mfk_distance
                     # print("x:{}, y:{}, z:{}".format(x, y, z))
+
+                    # (X,Y) = (0,0) is the center of the image
                     x_coord = -(x - 0.5*stream_res_x)
                     y_coord = -(y - 0.5*stream_res_y)
 
+                    # Scale the coordinates to make a box
                     x_coord = int((x_coord*z)/0.5)
                     y_coord = int((y_coord*z)/0.5)
 
+                    # Coordinate boundaries relative to the center of the image
                     x_boundary = (stream_res_x/2)*1.25
                     y_boundary = (stream_res_y/2)*1.25
 
-                    #TODO: Correct the boundaries and coordinate scaling
-
-                    if -x_boundary < x_coord < x_boundary and -y_boundary < y_coord < y_boundary and 0.6 < z < 1.2:
+                
+                    # X coordinate logic
+                    if -x_boundary < x_coord < x_boundary:
                         x_scaled = self.scale_range([x_coord], [-x_boundary, x_boundary], [-0.4, 0.4])
-                        y_scaled = self.scale_range([z], [0.6, 1.2], [0.2, 0.6])
-                        z_scaled = self.scale_range([y_coord], [-y_boundary, y_boundary], [0.01, 0.5])
-
                         self.coordinates2publish.position.x = x_scaled[0]
-                        self.coordinates2publish.position.y = y_scaled[0]
+                    
+                    elif x_coord < -x_boundary:
+                        x_scaled = [-0.4]
+                        self.coordinates2publish.position.x = x_scaled[0]
+                    
+                    elif x_coord > x_boundary:
+                        x_scaled = [0.4]
+                        self.coordinates2publish.position.x = x_scaled[0]
+                    
+                    # Z coordinate logic (Y swaps with Z)
+                    if -y_boundary < y_coord < y_boundary:
+                        z_scaled = self.scale_range([y_coord], [-y_boundary, y_boundary], [0.01, 0.5])
                         self.coordinates2publish.position.z = z_scaled[0]
 
                     elif y_coord < -y_boundary:
-                        x_scaled = self.scale_range([x_coord], [-x_boundary, x_boundary], [-0.4, 0.4])
-                        y_scaled = self.scale_range([z], [0.6, 1.2], [0.0, 0.6])
                         z_scaled = [0.01]
+                        self.coordinates2publish.position.z = z_scaled[0]
 
-                        self.coordinates2publish.position.x = x_scaled[0]
+                    elif y_coord > y_boundary:
+                        z_scaled = [0.5]
+                        self.coordinates2publish.position.z = z_scaled[0]
+
+                    # Y coordinate logic (Z swaps with Y)
+                    if 0.6 < z < 1.2:
+                        y_scaled = self.scale_range([z], [0.6, 1.2], [0.2, 0.6])
                         self.coordinates2publish.position.y = y_scaled[0]
-                        self.coordinates2publish.position.z = z_scaled[0] 
-                    else:
-                        print('Hand out of bounds')
+
+                    elif z < 0.6:
+                        y_scaled = [0.2]
+                        self.coordinates2publish.position.y = y_scaled[0]
+
+                    elif z > 1.2:
+                        y_scaled = [0.6]
+                        self.coordinates2publish.position.y = y_scaled[0]
                     
                     # images = cv2.line(images, (160, 110), (160, 330), self.color, 3)
                     # images = cv2.line(images, (160, 330), (480, 330), self.color, 3)
