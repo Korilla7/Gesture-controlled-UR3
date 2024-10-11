@@ -12,6 +12,7 @@ from gesture_ur3.msg import Gesture
 
 import numpy as np
 import math
+import time
 
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -45,6 +46,7 @@ commander.set_planning_time(5)
 commander.set_num_planning_attempts(10)
 
 base_rotation_angle = math.pi*(3/4)     # fixed angle to rotate the base of the robot
+
 # z_axis_correction = 0.24 + 0.05              # correction of the z-axis for vertical gripper
 # z_axis_correction = 0.15 + 0.05              # correction of the z-axis for angled gripper (45deg)
 z_axis_correction = 0.20 + 0.05              # correction of the z-axis for angled gripper (60deg)
@@ -107,7 +109,7 @@ class RobotController:
         self.current_gripper_state = None
 
 
-        # Values for plotting
+        # Arrays for plot values
         self.current_poses = []
         self.pose_goals = []
         self.pose_diff = []
@@ -117,6 +119,10 @@ class RobotController:
 
         # Flag for the robot activation
         self.activate_robot_flag = False
+
+        # Time delay for on/off switch
+        self.last_toggle_time = time.time()
+        self.toggle_delay = 3
 
         # Frequencies of robot movement [Hz]
         self.normal_move_rate = rospy.Rate(1)
@@ -166,6 +172,11 @@ class RobotController:
         plt.show()
 
     def rotate_point_around_z(self, theta, x, y, z):
+        """
+        Rotate the coordinate system around Z axis
+        
+        This puts the robot workspace where I want it
+        """
         # Convert angle from degrees to radians
         # theta = np.radians(angle)
         
@@ -185,6 +196,9 @@ class RobotController:
         return rotated_point
     
     def calculate_distance(self, current_pose, next_pose):
+        """
+        Calculate and return an euclidean distance between two points in 3D space.
+        """
         distance = math.sqrt((next_pose.position.x - current_pose.position.x)**2 + 
                              (next_pose.position.y - current_pose.position.y)**2 + 
                              (next_pose.position.z - current_pose.position.z)**2
@@ -193,6 +207,11 @@ class RobotController:
         return distance
 
     def set_new_pose_goal(self, pose_goal, new_x, new_y, new_z):
+        """
+        Assign and return a new target pose for the robot.
+
+        Also corrects the Z axis (line 49) 
+        """
         pose_goal.position.x = -new_x
         pose_goal.position.y = -new_y
         pose_goal.position.z = new_z + z_axis_correction
@@ -200,6 +219,11 @@ class RobotController:
 
 
     def coord_callback(self, data):
+        """
+        Process coordinate data from the topic.
+
+        Read target coordinates, adjust the coordinate system and set a new pose goal
+        """
         # rospy.loginfo(rospy.get_caller_id() + "%s", data)
         self.current_pose = commander.get_current_pose().pose
         # print("Current pose: \n", self.current_pose.position)
@@ -232,14 +256,25 @@ class RobotController:
         # Naruszenie ochrony pamięci (zrzut pamięci)
 
     def gesture_callback(self, data):
-        # if self.activate_robot_flag == False:
-        #     if data.gesture == ['Thumb_Up']:
-        #         self.activate_robot_flag = True
-        #         print("Robot activated.")
-        #         rospy.sleep(3)
-        #     else:
-        #         print("Show Thumb Up gesture to activate the robot.")
-        # if self.activate_robot_flag == True:
+        """
+        Process gesture data from the topic.
+
+        'Closed_Fist', 'Open_Palm' - gripper closed/open
+        'Thumb_Up' - robot switched on/off 
+        """
+
+        # Robot on/off switch in form of a Thumb Up gesture
+        # The switch is given a time delay to prevent constant switching
+        current_time = time.time()
+        if data.gesture == ['Thumb_Up'] and (current_time - self.last_toggle_time) > self.toggle_delay:
+            self.activate_robot_flag = not self.activate_robot_flag
+            self.last_toggle_time = current_time  # Last toggle time update
+            if self.activate_robot_flag:
+                print("Robot activated.")
+            else: 
+                print("Robot deactivated.")
+
+        if self.activate_robot_flag:
             if data.gesture == ['Closed_Fist']:
                 self.current_command.rPR = 255
                 print("Command rPR: ", self.current_command.rPR)
@@ -250,51 +285,48 @@ class RobotController:
                 self.current_gripper_state = 'open'
             if data.gesture == ['None']:
                 print("No gesture detected.")
-            # if data.gesture == ['Thumb_Up']:
-            #     self.activate_robot_flag = False
-            #     print("Robot deactivated.")
             self.previous_command = self.current_command
             print("Current force: ", self.current_command.rFR)
             self.command_pub.publish(self.current_command)
 
-        # doesnt work
-        # If current command changes to closed fist, hold the robot still
-        # if self.current_command.rPR == 255 and self.previous_command.rPR == 0:
-        #     commander.stop()
-        #     commander.clear_pose_targets()
-        #     rospy.sleep(1)
-        # self.previous_command = self.current_command
 
     def move_robot(self):
+        """
+        A thread with the main robot control loop.
+        """
         while not rospy.is_shutdown():
-            # if self.activate_robot_flag == True:
-                if self.previous_gripper_state == 'open' and self.current_gripper_state == 'closed':
-                    # Hold the robot still for 1 second
-                    rospy.sleep(1)
-                self.previous_gripper_state = self.current_gripper_state
+            if self.previous_gripper_state == 'open' and self.current_gripper_state == 'closed':
+                # Hold the robot still for 1 second
+                rospy.sleep(1)
+            self.previous_gripper_state = self.current_gripper_state
 
-                if self.next_pose == None:
-                    print("No new pose goal.")
-                    rospy.sleep(0.1)
-                    continue
-                print("Next pose: \n", self.next_pose)
-                if self.min_distance < self.calculate_distance(self.current_pose, self.next_pose) < self.max_distance:
-                    self.current_poses.append(self.next_pose)
-                    commander.set_pose_target(self.next_pose)
-                    # print(commander.plan(pose_goal))
-                    commander.go(self.next_pose, wait=True)
-                    commander.stop()
-                    commander.clear_pose_targets()
+            if self.next_pose == None:
+                print("No new pose goal.")
+                rospy.sleep(0.1)
+                continue
 
-                    # Plot stuff
-                    after_pose = commander.get_current_pose().pose
-                    difference = self.calculate_distance(self.next_pose, after_pose)
-                    self.pose_diff.append(difference)
-                    self.pose_goals.append(after_pose)
-                else:
-                    print("Distance is outside the acceptable range. Skipping the movement.")
-            
-                self.normal_move_rate.sleep()
+            if not self.activate_robot_flag:
+                rospy.sleep(1)
+                continue
+
+            print("Next pose: \n", self.next_pose)
+            if self.min_distance < self.calculate_distance(self.current_pose, self.next_pose) < self.max_distance:
+                self.current_poses.append(self.next_pose)
+                commander.set_pose_target(self.next_pose)
+                # print(commander.plan(pose_goal))
+                commander.go(self.next_pose, wait=True)
+                commander.stop()
+                commander.clear_pose_targets()
+
+                # Plot stuff
+                after_pose = commander.get_current_pose().pose
+                difference = self.calculate_distance(self.next_pose, after_pose)
+                self.pose_diff.append(difference)
+                self.pose_goals.append(after_pose)
+            else:
+                print("Distance is outside the acceptable range. Skipping the movement.")
+        
+            self.normal_move_rate.sleep()
     
     def robot_controller(self):
         rospy.spin()

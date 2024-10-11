@@ -164,7 +164,7 @@ class GestureRecognizer:
                     x_coord = -(x - 0.5*stream_res_x)
                     y_coord = -(y - 0.5*stream_res_y)
 
-                    # Scale the coordinates to make a box
+                    # Scale the coordinates to create a cuboid workspace
                     x_coord = int((x_coord*z_coord)/0.5)
                     y_coord = int((y_coord*z_coord)/0.5)
 
